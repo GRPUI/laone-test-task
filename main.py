@@ -12,7 +12,7 @@ import os
 
 from inline_buttons import MAIN_PAGE_INLINE
 from states.product import ProductDataGet
-from services import *
+from services import product
 
 dotenv.load_dotenv()
 
@@ -44,8 +44,23 @@ async def get_product_data(
         connection: AsyncEngine
 ) -> None:
     product_id = message.text
+    try:
+        product_id = int(product_id)
+    except ValueError:
+        await message.answer("Введите корректный id товара")
+        return
     await state.clear()
-    await message.answer(product_id)
+    product_info = await product.get_product_data(product_id)
+    if product_info:
+        text = (f'Информация о товаре:\n'
+                f'Артикул: {product_info["id"]}\n'
+                f'Название: {product_info["name"]}\n'
+                f'Цена: {product_info["price"]}\n'
+                f'Цена со скидкой: {product_info["price_with_discount"]}\n'
+                f'Количество: {product_info["quantity"]}\n')
+        await message.answer(text)
+        return
+    await message.answer("Товар не найден")
 
 
 @router.callback_query()
