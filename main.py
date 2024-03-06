@@ -10,7 +10,7 @@ from loguru import logger
 import dotenv
 import os
 
-from inline_buttons import MAIN_PAGE_INLINE
+from inline_buttons import MAIN_PAGE_INLINE, follow
 from states.product import ProductDataGet
 from services import product
 
@@ -58,7 +58,11 @@ async def get_product_data(
                 f'Цена: {product_info["price"]}\n'
                 f'Цена со скидкой: {product_info["price_with_discount"]}\n'
                 f'Количество: {product_info["quantity"]}\n')
-        await message.answer(text)
+        markup = await follow(product_id=product_id)
+        await message.answer(
+            text=text,
+            reply_markup=markup
+        )
         return
     await message.answer("Товар не найден")
 
