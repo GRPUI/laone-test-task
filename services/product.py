@@ -1,5 +1,13 @@
+from datetime import datetime
+
 import aiohttp
 from typing import Dict
+
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+
+from models.request import Request
+from models.subscription import Subscription
 
 
 async def get_product_data(product_id: int) -> Dict[str, str]:
@@ -25,3 +33,33 @@ async def get_product_data(product_id: int) -> Dict[str, str]:
         "rating": rating,
         "quantity": quantity
     }
+
+
+async def follow_product(connection: AsyncEngine, product_id: int, chat_id: int) -> None:
+    async with AsyncSession(connection) as session:
+        async with session.begin():
+            new_subscription = Subscription(
+                user_id=chat_id,
+                product_id=product_id)
+            session.add(new_subscription)
+            await session.commit()
+
+
+async def unfollow_product(connection: AsyncEngine, chat_id: int) -> None:
+    async with AsyncSession(connection) as session:
+        async with session.begin():
+            await session.execute(
+                delete(Subscription).where(Subscription.user_id == chat_id)
+            )
+            await session.commit()
+
+
+async def save_request(connection: AsyncEngine, user_id: int, product_id: int) -> None:
+    async with AsyncSession(connection) as session:
+        async with session.begin():
+            new_request = Request(
+                user_id=user_id,
+                datetime=datetime.now(),
+                product_id=product_id)
+            session.add(new_request)
+            await session.commit()

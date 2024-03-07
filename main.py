@@ -31,7 +31,7 @@ async def send_welcome(message: types.Message, bot: Bot, connection: AsyncEngine
 
 
 @router.message(filters.Command("help"))
-async def send_help(message: types.Message):
+async def send_help(message: types.Message) -> None:
     logger.info(f"User:{message.from_user.id} Command: /help")
     await logger.complete()
     await message.answer("Для начала работы нажмите /start\n")
@@ -43,6 +43,7 @@ async def get_product_data(
         state: FSMContext,
         connection: AsyncEngine
 ) -> None:
+    print(message.chat.id)
     product_id = message.text
     try:
         product_id = int(product_id)
@@ -52,17 +53,20 @@ async def get_product_data(
     await state.clear()
     product_info = await product.get_product_data(product_id)
     if product_info:
-        text = (f'Информация о товаре:\n'
-                f'Артикул: {product_info["id"]}\n'
-                f'Название: {product_info["name"]}\n'
-                f'Цена: {product_info["price"]}\n'
-                f'Цена со скидкой: {product_info["price_with_discount"]}\n'
-                f'Количество: {product_info["quantity"]}\n')
+        text = (f'*Специальное предложение!* '
+                f'Закажите *\"{product_info["name"]}\"* с артикулом *{product_info["id"]}*. Этот '
+                f'товар *с рейтингом {product_info["rating"]}* доступен в *ограниченном количестве* - '
+                f'*всего {product_info["quantity"]} штуки.* '
+                f'Сейчас вы можете купить его *со скидкой* и заплатить всего {product_info["price_with_discount"]} '
+                f'рублей вместо *{product_info["price"]} рублей.* *Не упустите свою выгоду!*')
         markup = await follow(product_id=product_id)
         await message.answer(
             text=text,
-            reply_markup=markup
+            reply_markup=markup,
+            parse_mode="Markdown"
         )
+        save_request = await product.save_request(connection, message.chat.id, product_id)
+
         return
     await message.answer("Товар не найден")
 
@@ -77,7 +81,14 @@ async def process_callback(
     await logger.complete()
     if callback_query.data == "get_product_data":
         await state.set_state(ProductDataGet.GET_PRODUCT_ID)
-        await callback_query.message.answer("Введите id товара")
+        await callback_query.message.edit_text("Введите id товара:")
+    elif callback_query.data.startswith("follow"):
+        product_id = int(callback_query.data.split("-")[1])
+        await product.follow_product(connection, product_id, callback_query.message.chat.id)
+        await callback_query.message.edit_text("Вы подписались на уведомления")
+    elif callback_query.data == "disable_notifications":
+        await product.unfollow_product(connection, callback_query.message.chat.id)
+        await callback_query.message.edit_text("Вы отписались от уведомлений")
 
 
 async def main() -> None:
@@ -91,7 +102,8 @@ async def main() -> None:
     port = os.getenv(key="DB_PORT")
 
     connection = create_async_engine(
-        f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+        f"postgresql+asyncpg://{user}:{password}@localhost:{port}/{database}",
+        echo=True
     )
 
     api_token = os.getenv("API_TOKEN")
