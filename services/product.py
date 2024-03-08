@@ -38,10 +38,10 @@ async def get_product_data(product_id: int) -> Dict[str, str]:
 async def follow_product(connection: AsyncEngine, product_id: int, chat_id: int) -> None:
     async with AsyncSession(connection) as session:
         async with session.begin():
-            stmt = select(Request).where(Request.user_id == chat_id, Request.product_id == product_id)
+            stmt = select(Subscription).where(Subscription.user_id == chat_id, Subscription.product_id == product_id)
             result = await session.execute(stmt)
             rows = result.scalars().all()
-            if rows:
+            if len(rows) > 0:
                 return
 
             new_subscription = Subscription(
