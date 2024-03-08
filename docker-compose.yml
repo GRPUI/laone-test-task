@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:13
+    hostname: postgres
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
+    networks:
+      - backend
+
+  rabbitmq:
+    image: rabbitmq:3.10.7-management
+    hostname: rabbitmq
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=rmuser
+      - RABBITMQ_DEFAULT_PASS=rmpassword
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit log_levels [{connection,error},{default,error}] disk_free_limit 2147483648
+    volumes:
+      - ./rabbitmq:/var/lib/rabbitmq
+    ports:
+      - 15672:15672
+      - 5672:5672
+    networks:
+      - backend
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A services.tasks worker --loglevel=info -P eventlet
+    depends_on:
+      - rabbitmq
+    environment:
+      - C_FORCE_ROOT=true
+    restart: always
+    networks:
+      - backend
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A services.tasks beat --loglevel=info
+    depends_on:
+      - rabbitmq
+      - worker
+    environment:
+      - C_FORCE_ROOT=true
+    restart: always
+    networks:
+      - backend
+
+  aiogram:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python main.py
+    depends_on:
+      - rabbitmq
+      - worker
+      - beat
+    environment:
+      - C_FORCE_ROOT=true
+    restart: always
+    networks:
+      - backend
+
+networks:
+    backend:
+        driver: bridge

@@ -10,6 +10,8 @@ from loguru import logger
 import dotenv
 import os
 
+from sqlalchemy.ext.declarative import declarative_base
+
 from inline_buttons import MAIN_PAGE_INLINE, follow
 from states.product import ProductDataGet
 from services import product
@@ -20,7 +22,7 @@ router = Router()
 
 
 @router.message(filters.Command("start"))
-async def send_welcome(message: types.Message, bot: Bot, connection: AsyncEngine) -> None:
+async def send_welcome(message: types.Message, bot: Bot) -> None:
     logger.info(f"User:{message.from_user.id} Command: /start")
     await logger.complete()
     await bot.send_message(
@@ -43,7 +45,6 @@ async def get_product_data(
         state: FSMContext,
         connection: AsyncEngine
 ) -> None:
-    print(message.chat.id)
     product_id = message.text
     try:
         product_id = int(product_id)
@@ -102,7 +103,7 @@ async def main() -> None:
     port = os.getenv(key="DB_PORT")
 
     connection = create_async_engine(
-        f"postgresql+asyncpg://{user}:{password}@localhost:{port}/{database}",
+        f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}",
         echo=True
     )
 
