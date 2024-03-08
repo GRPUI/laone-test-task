@@ -90,6 +90,9 @@ async def process_callback(
     elif callback_query.data == "disable_notifications":
         await product.unfollow_product(connection, callback_query.message.chat.id)
         await callback_query.message.edit_text("Вы отписались от уведомлений")
+    elif callback_query.data == "get_data_from_db":
+        result = await product.get_last_request(connection)
+        await callback_query.message.edit_text(f"{result}")
 
 
 async def main() -> None:

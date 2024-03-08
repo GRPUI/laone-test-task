@@ -1,9 +1,9 @@
 from datetime import datetime
 
 import aiohttp
-from typing import Dict
+from typing import Dict, List
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from models.request import Request
@@ -38,6 +38,12 @@ async def get_product_data(product_id: int) -> Dict[str, str]:
 async def follow_product(connection: AsyncEngine, product_id: int, chat_id: int) -> None:
     async with AsyncSession(connection) as session:
         async with session.begin():
+            stmt = select(Request).where(Request.user_id == chat_id, Request.product_id == product_id)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            if rows:
+                return
+
             new_subscription = Subscription(
                 user_id=chat_id,
                 product_id=product_id)
@@ -63,3 +69,14 @@ async def save_request(connection: AsyncEngine, user_id: int, product_id: int) -
                 product_id=product_id)
             session.add(new_request)
             await session.commit()
+
+
+async def get_last_request(connection: AsyncEngine) -> List[Dict]:
+    async with AsyncSession(connection) as session:
+        async with session.begin():
+            stmt = select(Request).order_by(Request.datetime.desc()).limit(5)
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            return [{"user_id": row.user_id,
+                     "product_id": row.product_id,
+                     "datetime": row.datetime.strftime("%Y-%m-%d %H:%M:%S")} for row in rows[::-1]]
