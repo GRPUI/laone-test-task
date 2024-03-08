@@ -41,13 +41,14 @@ def send_notification():
             results = session.query(Subscription).all()
             for result in results:
                 product_info = asyncio.run(get_product_data(result.product_id))
+                token = os.getenv("API_TOKEN")
                 text = (f'Специальное предложение! '
                         f'Закажите \"{product_info["name"]}\" с артикулом {product_info["id"]}. Этот '
                         f'товар с рейтингом {product_info["rating"]} доступен в ограниченном количестве - '
                         f'всего {product_info["quantity"]} штуки. '
                         f'Сейчас вы можете купить его со скидкой и заплатить всего {product_info["price_with_discount"]} '
                         f'рублей вместо {product_info["price"]} рублей. Не упустите свою выгоду!')
-                requests.get(f"https://api.telegram.org/bot7087422238:AAFZmdkJhmzUMXnARr6PEwJbRVr1nwzKciI/sendMessage?chat_id={result.user_id}&text={text}")
+                requests.get(f"https://api.telegram.org/bot{token}/sendMessage?chat_id={result.user_id}&text={text}")
 
 
 if __name__ == '__main__':
